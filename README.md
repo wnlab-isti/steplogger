@@ -1,2 +1,2 @@
-# steplogger
+# StepLogger
 The StepLogger app
