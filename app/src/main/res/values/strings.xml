@@ -1,0 +1,43 @@
+<resources>
+    <string name="app_name">StepLogger</string>
+
+    <string name="menu_action_newsession">Start a new measurement session</string>
+    <string name="menu_action_settings">Settings</string>
+
+
+    <string name="pref_title">Settings</string>
+    <string name="pref_test_mode_title">Test mode</string>
+    <string name="pref_test_mode_desc">If turned on, no log file will be written.</string>
+
+    <string name="welcomedialog_title">Welcome!</string>
+    <string name="welcomedialog_text">This is the StepLogger application</string>
+
+    <string name="toast_startMeasuring">Measurement campaign started.</string>
+    <string name="toast_userMeasuring">User %s.</string>
+    <string name="toast_stopMeasuring">Measurement campaign ended.</string>
+
+    <string name="measuresResult_title">List of measures</string>
+
+    <string name="toast_testmode">Test mode</string>
+    <string name="toast_notSaved">Errors occurred while saving the log file.</string>
+    <string name="toast_saveSuccessful">Log file saved successfully.</string>
+
+    <string name="warning_title_warning">Warning</string>
+    <string name="warning_title_exit">Exit</string>
+    <string name="warning_content_config_ini_file">Wrong or missing configuration file %s.</string>
+    <string name="warning_content_exit_question">Are you sure you want to exit the application ?</string>
+
+    <string name="button_ok">Ok</string>
+    <string name="button_cancel">Cancel</string>
+
+    <string name="restServicesBinded">Rest Services binded</string>
+    <string name="restServicesUnbinded">Rest Services unbinded</string>
+
+    <string name="uid_hint">User ID</string>
+    <string name="uid_msg">Please insert your ID</string>
+    <string name="uid_title">Competitor ID</string>
+    <string name="toast_measureSaved">Measure %s saved.</string>
+
+    <string name="remote_service_connected">Remote service connected</string>
+    <string name="remote_service_disconnected">Remote service disconnected</string>
+</resources>
