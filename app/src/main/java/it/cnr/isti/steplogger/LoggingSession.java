@@ -103,7 +103,7 @@ public class LoggingSession {
                 setGranularity(Granularity.GRANULARITY_FINE).
                 setPriority(Priority.PRIORITY_HIGH_ACCURACY).
                 setMaxUpdateAgeMillis(200).
-                setDurationMillis(500).
+                setDurationMillis(5000).
                 build();
 
         // shown an information that the logging starts
