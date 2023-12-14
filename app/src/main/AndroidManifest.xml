@@ -2,23 +2,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="it.cnr.isti.steplogger">
 
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme"
-        android:requestLegacyExternalStorage="true"
         >
         <activity
             android:name="it.cnr.isti.steplogger.StepLoggerActivity"
-            android:label="@string/app_name"
->
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -28,6 +27,7 @@
         <activity
             android:name="it.cnr.isti.steplogger.SettingsActivity"
             android:label="@string/pref_title"
+            android:exported="false"
             >
         </activity>
 
@@ -35,7 +35,8 @@
             android:name="it.cnr.isti.steplogger.StepLoggerService"
             android:exported="true"
             android:enabled="true"
-            android:process=":remote">
+            android:process=":remote"
+        >
 
             <intent-filter>
                 <action android:name=".IStepLoggerService.aidl"/>

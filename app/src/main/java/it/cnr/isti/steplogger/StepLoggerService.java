@@ -29,9 +29,7 @@ public class StepLoggerService extends Service {
     private LoggingSession logSession;
 
     /** the waypoint configuration */
-    final Config configuration = new Config();
-
-
+    final Config configuration = new Config(this);
 
     @Override
     public void onCreate() {

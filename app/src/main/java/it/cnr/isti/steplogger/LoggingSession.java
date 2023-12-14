@@ -1,10 +1,15 @@
 package it.cnr.isti.steplogger;
 
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.media.MediaScannerConnection;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -16,26 +21,27 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.location.CurrentLocationRequest;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.Granularity;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static java.lang.System.currentTimeMillis;
-
 /**
  * describes the currently active logging session that will log
  * - position updates
  * - button presses
  * into two files that reside within the same folder
- *
  * this also creates a screen overlay,
  * that shows a clickable button,
  * that is always-on-top no matter which app is currently in foreground!
- *
  * MUST be instantiated from a backgroundService to survive app-switching
- *
  * TODO: open both logfiles once instead of opening/closing them over and over again
  */
 public class LoggingSession {
@@ -43,7 +49,7 @@ public class LoggingSession {
     private static final String LOG_TAG = LoggingSession.class.getName();
 
     //ui
-    private WindowManager wm;
+    private final WindowManager wm;
     private View overlayView;
     private Button counterButton;
     private TextView lblInfo;
@@ -51,21 +57,20 @@ public class LoggingSession {
     /** the service the logger belongs to */
     private final StepLoggerService service;
 
+    private final FusedLocationProviderClient fusedLocationClient;
+    private final CurrentLocationRequest currentLocationRequest;
+
     /** the folder (including the timestamp during time-of-start) to write log-files to */
     private final File logFileDir;
 
     /** parsed configuration lines */
-    private String[] lines;
+    private final String[] lines;
 
     /** current waypoint index */
     private Integer index = 0;
 
     /** track the number of received position updates */
-    private Stats stats = new Stats();
-
-    /** timestamp of logging start */
-    private final long tsStart = System.currentTimeMillis();
-
+    private final Stats stats = new Stats();
 
     /** ctor */
     public LoggingSession(final StepLoggerService service, final File logFileDir, WindowManager wm, LayoutInflater inflater, Config configuration) {
@@ -93,6 +98,14 @@ public class LoggingSession {
         // build the UI
         setupUi();
 
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(overlayView.getContext());
+        currentLocationRequest = new CurrentLocationRequest.Builder().
+                setGranularity(Granularity.GRANULARITY_FINE).
+                setPriority(Priority.PRIORITY_HIGH_ACCURACY).
+                setMaxUpdateAgeMillis(200).
+                setDurationMillis(500).
+                build();
+
         // shown an information that the logging starts
         final Context ctx = overlayView.getContext();
         Toast.makeText(ctx, "new logging session\n" + logFileDir, Toast.LENGTH_LONG).show();
@@ -101,12 +114,14 @@ public class LoggingSession {
 
     /** must be called from the service when the logging session is complete */
     public void destroy() {
+
         if (overlayView != null) {
             wm.removeView(overlayView);
             overlayView = null;
         }
     }
 
+    @SuppressLint("MissingPermission")
     private void setupUi() {
 
         counterButton = (Button) overlayView.findViewById(R.id.counterButton);
@@ -121,29 +136,46 @@ public class LoggingSession {
                         // get the entry-string to log for the current waypoint
                         final String[] logButton  = lines[index].split(":");
 
-                        // try to create a new log entry
-                        final boolean saveOK = (logCurrentWaypoint(
-                                System.currentTimeMillis() + " : " + logButton[0]+ " : " + logButton[1] +" : "+ logButton[2]+" : "+logButton[3]+"\n",
-                                lines[index]));
 
-                        // if saving was OK, proceed with the next waypoint and block the button for some time
-                        if (saveOK) {
-                            index++;
-                            disableButtonForSomeTime();
-                        }
+                        fusedLocationClient.getCurrentLocation(currentLocationRequest, null).
+                                addOnSuccessListener(location -> {
+                                            double longitude = Double.NaN;
+                                            double latitude = Double.NaN;
+                                            if(location != null) {
+                                                longitude = location.getLongitude();
+                                                latitude = location.getLatitude();
+                                            }
+                                            Log.d(LOG_TAG, "Location = " + longitude + ", " + latitude);
 
-                        // update the system state
-                        if(index < lines.length) {
+                                            // try to create a new log entry
+                                            final boolean saveOK = (logCurrentWaypoint(
+                                                    System.currentTimeMillis() + " : " + logButton[0]+ " : " + logButton[1] + " : " + logButton[2] + " : " +logButton[3]
+                                                            + " : " + longitude + " : " + latitude
+                                                            + "\n",
+                                                    lines[index]));
 
-                            final String buttonName  = lines[index].split(":")[0];
-                            counterButton.setText(buttonName);
+                                            // if saving was OK, proceed with the next waypoint and block the button for some time
+                                            if (saveOK) {
+                                                index++;
+                                                disableButtonForSomeTime();
+                                            }
 
-                        } else {
+                                            // update the system state
+                                            if(index < lines.length) {
 
-                            // logging complete. kill the service!
-                            loggingComplete();
+                                                final String buttonName  = lines[index].split(":")[0];
+                                                counterButton.setText(buttonName);
 
-                        }
+                                            } else {
+
+                                                // logging complete. kill the service!
+                                                loggingComplete();
+
+                                            }
+
+                                        }
+
+                                );
 
                     }
                 }
@@ -188,7 +220,7 @@ public class LoggingSession {
             final File fileToWrite = new File(logFileDir, AppSettings.LOG_POSITION);
             final BufferedWriter bw = new BufferedWriter(new FileWriter(fileToWrite, true));
 //            bw.write("A " + String.valueOf(timestmap) + " " + x + " " + y + " " + z + "\n");
-            bw.write(String.valueOf(currentTimeMillis()) + " " + x + " " + y + " " + z + "\n");
+            bw.write(String.valueOf(System.currentTimeMillis()) + " " + x + " " + y + " " + z + "\n");
             bw.flush();
             bw.close();
             MediaScannerConnection.scanFile(getContext(), new String[]{fileToWrite.getAbsolutePath()}, null, null);
@@ -219,12 +251,11 @@ public class LoggingSession {
             bw.write(content);
             bw.close();
             Log.d(LOG_TAG, fileToWrite.toURI()+" written");
-            scanFile(fileToWrite);
             return true;
 
         } catch (Exception e) {
 
-            Log.e(LOG_TAG, e.getMessage());
+            Log.e(LOG_TAG, e.getMessage() != null ? e.getMessage() : "Error");
             e.printStackTrace();
             return false;
 
@@ -268,17 +299,6 @@ public class LoggingSession {
             }
         );
 
-    }
-
-
-
-
-
-    /** TODO: implement this again? */
-    private void scanFile(final File permFile) {
-//        Intent mediaScannerIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-//        Uri fileContentUri = Uri.fromFile(permFile); // With 'permFile' being the File object
-//        mediaScannerIntent.setData(fileContentUri);
     }
 
 }

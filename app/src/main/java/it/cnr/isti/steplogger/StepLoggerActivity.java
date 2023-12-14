@@ -8,9 +8,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Menu;
@@ -19,9 +17,11 @@ import android.widget.EditText;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.preference.PreferenceManager;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -32,18 +32,14 @@ public class StepLoggerActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = StepLoggerActivity.class.getName();
 
-    //private Button counterButton;
-    //private int counterButtonVisibility = View.INVISIBLE;
     private String[] lines = null;
-    //private String folder = "";
+
     public String uid = "";
-    //private Integer index = 0;
 
     /**
-     * the service that performes the background logging, wrapped within a helper class
+     * the service that performs the background logging, wrapped within a helper class
      */
-    StepLoggerServiceHelper service = null;
-
+    private StepLoggerServiceHelper service = null;
 
     private boolean testMode = false;
     private boolean recreatedActivity;
@@ -69,7 +65,7 @@ public class StepLoggerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_steplogger);
 
-        if((Build.VERSION.SDK_INT >= 23) && !Settings.canDrawOverlays(this)) {
+        if(!Settings.canDrawOverlays(this)) {
 
             Log.d(LOG_TAG, "Build >= 23, Requesting permission to draw overlays");
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -90,7 +86,7 @@ public class StepLoggerActivity extends AppCompatActivity {
         service = new StepLoggerServiceHelper(this);
 
         // sanity check. ensure that the configuration.ini is accessible and valid
-        configuration = new Config();
+        configuration = new Config(this);
         configuration.load();
         lines = configuration.get("counter").split(",");
 
@@ -104,8 +100,9 @@ public class StepLoggerActivity extends AppCompatActivity {
         PreferenceManager.setDefaultValues(this, R.xml.settings, false);
 
         if (lines != null && !configDialogShowing) {
-            if (!recreatedActivity || (recreatedActivity && welcomeScreenDialogShowing))
+            if (!recreatedActivity || welcomeScreenDialogShowing) {
                 this.showWelcomeDialog();
+            }
             // String buttonName  = lines[index].split(":")[0];
             if (userIdDialogShowing) startNewMeasuringSession();
         }
@@ -113,7 +110,7 @@ public class StepLoggerActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissionsList[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissionsList, @NonNull int[] grantResults) {
 
         super.onRequestPermissionsResult(requestCode, permissionsList, grantResults);
         for (int i = 0; i < permissionsList.length; i++) {
@@ -125,41 +122,34 @@ public class StepLoggerActivity extends AppCompatActivity {
         }
 
         setup();
-        return;
     }
 
     private void checkPermissions() {
 
-        String[] permissions = new String[]{
-                Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                Manifest.permission.READ_EXTERNAL_STORAGE,
+        String[] permissions = new String[] {
+                Manifest.permission.ACCESS_FINE_LOCATION
         };
 
-
-        Log.d(LOG_TAG, "Check permissions " + permissions.length);
-
-        List<String> listPermissionsNeeded = new ArrayList<>();
-        for (String p : permissions) {
-            int result = ContextCompat.checkSelfPermission(this, p);
+        List<String> permissionsNeeded = new ArrayList<>();
+        for (String permission : permissions) {
+            int result = ContextCompat.checkSelfPermission(this, permission);
             if (result != PackageManager.PERMISSION_GRANTED) {
-                listPermissionsNeeded.add(p);
+                permissionsNeeded.add(permission);
             }
         }
-        if (!listPermissionsNeeded.isEmpty()) {
-
-            Log.d(LOG_TAG, "Request permissions " + listPermissionsNeeded.size());
+        if (!permissionsNeeded.isEmpty()) {
 
             ActivityCompat.requestPermissions(this,
-                    listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]), 12334);
+                    permissionsNeeded.toArray(new String[0]), 12334);
         } else {
 
-            Log.d(LOG_TAG, "No permissions needed.");
+            Log.d(LOG_TAG, "No permissions needed");
             setup();
         }
 
     }
 
-    private ActivityResultLauncher<Intent> requestOverlayPermissionLauncher =
+    private final ActivityResultLauncher<Intent> requestOverlayPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
                     result -> {
 
@@ -228,15 +218,12 @@ public class StepLoggerActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if(item.isEnabled()) {
-            switch (id) {
-                case R.id.menu_action_newsession:
-                    this.startNewMeasuringSession();
-                    break;
-
-                case R.id.menu_action_settings:
-                    Intent intent = new Intent(this, SettingsActivity.class);
-                    startActivity(intent);
-                    break;
+            if(id == R.id.menu_action_newsession) {
+                this.startNewMeasuringSession();
+            }
+            else if(id == R.id.menu_action_settings) {
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
             }
         }
         return super.onOptionsItemSelected(item);
@@ -277,14 +264,6 @@ public class StepLoggerActivity extends AppCompatActivity {
 
         super.onSaveInstanceState(outState);
     }
-
-    /*
-    private static String getCurrentTimeStamp(Boolean isFolderLabel){
-        Time now = new Time();
-        now.setToNow();
-        return "" + (isFolderLabel ? now.format("%Y%m%dT%H%M%S") : currentTimeMillis());
-    }
-    */
 
     private void showWelcomeDialog() {
         welcomeScreenDialogShowing = true;

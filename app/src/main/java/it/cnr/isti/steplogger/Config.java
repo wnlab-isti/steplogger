@@ -1,7 +1,6 @@
 package it.cnr.isti.steplogger;
 
 import android.content.Context;
-import android.os.Environment;
 import android.util.Log;
 
 import java.io.FileInputStream;
@@ -11,19 +10,22 @@ import java.util.Properties;
 
 public class Config {
 
-    private static String LOG_TAG = Config.class.getName();
-    private Properties configuration;
+    private static final String LOG_TAG = Config.class.getName();
+    private final Properties configuration;
 
-    public Config() {
+    private final Context context;
+
+    public Config(Context context) {
+        this.context = context;
         configuration = new Properties();
     }
 
     public String getLogFilesFolder() {
-        return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath().concat("/" + AppSettings.logFolder);
+        return context.getFilesDir().getAbsolutePath().concat("/" + AppSettings.logFolder);
     }
 
     public String getConfigurationFile() {
-        return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath().concat("/" + AppSettings.configFile);
+        return context.getFilesDir().getAbsolutePath().concat("/" + AppSettings.configFile);
     }
 
     public boolean load() {

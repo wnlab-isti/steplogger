@@ -22,7 +22,7 @@ public class StepLoggerServiceHelper {
     }
 
     /** dtor */
-    public void finalize() {
+    protected void finalize() {
         doUnbindService();
     }
 
@@ -41,7 +41,7 @@ public class StepLoggerServiceHelper {
 
 
     /** connect/disconnect events for the service */
-    private ServiceConnection mConnection = new ServiceConnection() {
+    private final ServiceConnection mConnection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder service) {
             mService = IStepLoggerService.Stub.asInterface(service);
         }
