@@ -21,11 +21,10 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.location.CurrentLocationRequest;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Granularity;
+import com.google.android.gms.location.LastLocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.Priority;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -57,8 +56,12 @@ public class LoggingSession {
     /** the service the logger belongs to */
     private final StepLoggerService service;
 
-    private final FusedLocationProviderClient fusedLocationClient;
-    private final CurrentLocationRequest currentLocationRequest;
+    private LocationManager locationManager;
+    private LocationListener locationListener;
+
+    private Location lastLocation;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     /** the folder (including the timestamp during time-of-start) to write log-files to */
     private final File logFileDir;
@@ -73,6 +76,7 @@ public class LoggingSession {
     private final Stats stats = new Stats();
 
     /** ctor */
+    @SuppressLint("MissingPermission")
     public LoggingSession(final StepLoggerService service, final File logFileDir, WindowManager wm, LayoutInflater inflater, Config configuration) {
 
         this.service = service;
@@ -98,22 +102,54 @@ public class LoggingSession {
         // build the UI
         setupUi();
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(overlayView.getContext());
-        currentLocationRequest = new CurrentLocationRequest.Builder().
-                setGranularity(Granularity.GRANULARITY_FINE).
-                setPriority(Priority.PRIORITY_HIGH_ACCURACY).
-                setMaxUpdateAgeMillis(200).
-                setDurationMillis(5000).
-                build();
+        startLocationUpdates();
 
         // shown an information that the logging starts
         final Context ctx = overlayView.getContext();
         Toast.makeText(ctx, "new logging session\n" + logFileDir, Toast.LENGTH_LONG).show();
+    }
+
+    @SuppressLint("MissingPermission")
+    private void startLocationUpdates() {
+
+        Log.d(LOG_TAG, "Requesting locations");
+        locationManager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+
+        locationListener = new LocationListener() {
+
+            public void onLocationChanged(final Location location) {
+
+                Log.d(LOG_TAG, "New location: " + location);
+                handler.post(new Runnable() {
+                    public void run() {
+                        Log.d(LOG_TAG, "GPS location: " + location);
+                        LoggingSession.this.lastLocation = location;
+
+                    }
+                });
+            }
+
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+            }
+
+            public void onProviderEnabled(String provider) {
+            }
+
+            public void onProviderDisabled(String provider) {
+            }
+        };
+
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100,
+                0, locationListener);
 
     }
 
+
     /** must be called from the service when the logging session is complete */
     public void destroy() {
+
+        Log.d(LOG_TAG, "Destroy");
+        locationManager.removeUpdates(locationListener);
 
         if (overlayView != null) {
             wm.removeView(overlayView);
@@ -136,9 +172,21 @@ public class LoggingSession {
                         // get the entry-string to log for the current waypoint
                         final String[] logButton  = lines[index].split(":");
 
+                        Log.d(LOG_TAG, "Button clicked " + logButton[0]+ " : " + logButton[1] + " : " +
+                                logButton[2] + " : " +logButton[3]);
 
-                        fusedLocationClient.getCurrentLocation(currentLocationRequest, null).
+                        Log.d(LOG_TAG, "Creating FusedLocationProviderClient and LastLocationRequest");
+                        FusedLocationProviderClient fusedLocationClient =
+                                LocationServices.getFusedLocationProviderClient(overlayView.getContext());
+                        LastLocationRequest lastLocationRequest = new LastLocationRequest.Builder().
+                                setGranularity(Granularity.GRANULARITY_FINE).
+                                build();
+
+                        Log.d(LOG_TAG, "Requesting last location");
+                        fusedLocationClient.getLastLocation(lastLocationRequest).
                                 addOnSuccessListener(location -> {
+
+                                            Log.d(LOG_TAG, "OnSuccessListener " + location);
                                             double longitude = Double.NaN;
                                             double latitude = Double.NaN;
                                             if(location != null) {
@@ -173,6 +221,11 @@ public class LoggingSession {
 
                                             }
 
+                                        }
+
+                                ).
+                                addOnFailureListener(ex -> {
+                                            Log.e(LOG_TAG, "Exception", ex);
                                         }
 
                                 );

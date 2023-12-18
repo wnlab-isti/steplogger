@@ -55,6 +55,8 @@ public class StepLoggerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+
+        Log.d(LOG_TAG, "onDestroy()");
         service.doUnbindService();
         super.onDestroy();
     }
@@ -65,15 +67,13 @@ public class StepLoggerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_steplogger);
 
-        if(!Settings.canDrawOverlays(this)) {
+        if (!Settings.canDrawOverlays(this)) {
 
             Log.d(LOG_TAG, "Build >= 23, Requesting permission to draw overlays");
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName()));
             requestOverlayPermissionLauncher.launch(intent);
-        }
-
-        else {
+        } else {
             Log.d(LOG_TAG, "Checking permissions");
             checkPermissions();
         }
@@ -107,6 +107,7 @@ public class StepLoggerActivity extends AppCompatActivity {
             if (userIdDialogShowing) startNewMeasuringSession();
         }
 
+        Log.d(LOG_TAG, "Running");
     }
 
     @Override
@@ -127,7 +128,10 @@ public class StepLoggerActivity extends AppCompatActivity {
     private void checkPermissions() {
 
         String[] permissions = new String[] {
-                Manifest.permission.ACCESS_FINE_LOCATION
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.ACCESS_FINE_LOCATION //,
+//                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+
         };
 
         List<String> permissionsNeeded = new ArrayList<>();
@@ -311,7 +315,7 @@ public class StepLoggerActivity extends AppCompatActivity {
                             // start a new logging session
                             service.startNewLoggingSession(uid);
                             // shut-down [hide] the activity
-                            StepLoggerActivity.this.finish();
+//                            StepLoggerActivity.this.finish();
 
                         }
                     }
